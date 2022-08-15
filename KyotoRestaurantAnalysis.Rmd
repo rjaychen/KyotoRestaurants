@@ -1,0 +1,131 @@
+---
+title: "KyotoRestaurantAnalysis"
+output: html_document
+date: "2022-08-12"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+##Intro and Cleaning
+This dataset was taken from Kaggle, originally scraped from a public database compiled by Tabelog on Kyoto area restaurants. All credit for scraping goes to the original author.  This is my personal analysis of these restaurants based on my interests and questions. The data was already cleaned and processed in Google Sheets prior to importing into RStudio. 
+For reference: 
+https://www.kaggle.com/datasets/koki25ando/tabelog-restaurant-review-dataset
+
+The purpose of this analysis is to determine any correlations between the given explanatory variables and the response variables of Total, Dinner, and Lunch Rating.
+
+Install and load libraries:
+```{r}
+install.packages("tidyverse")
+install.packages("statsr")
+install.packages("ggplot2")
+install.packages("janitor")
+library(tidyverse)
+library(statsr)
+library(ggplot2)
+library(janitor)
+```
+
+Let's take a look at the original data:
+```{r}
+data <- read.csv("Kyoto_Restaurant_Info.csv")
+```
+Let's first get a look at what the data specifically contains:
+```{r}
+str(data)
+```
+It looks like the data has a lot of variance in formatting. For example, the dinner price ranges are strings, rather than specially formatted numbers. Secondly, there appears to be some extra white spaces on certain names, and thirdly, the null values in many of the columns are "NA" strings. In addition to cleaning these using the filter and replace functions in Sheets, I also made additions to columns and used column separation for ease of use in data analysis. 
+Here's a look at the cleaned data:
+```{r}
+clean <- read.csv("CleanKyotoData.csv")
+#It looks like the csv file failed to treat excel formatting as numericals. Let's fix this with a quick replacement.
+clean$DinnerLowPrice = as.numeric(gsub("[\\¥,]", "", clean$DinnerLowPrice))
+clean$DinnerHighPrice = as.numeric(gsub("[\\¥,]", "", clean$DinnerHighPrice))
+clean$LunchLowPrice = as.numeric(gsub("[\\¥,]", "", clean$LunchLowPrice))
+clean$LunchHighPrice = as.numeric(gsub("[\\¥,]", "", clean$LunchHighPrice))
+str(clean)
+```
+It looks like everything above has been addressed. Furthermore, there are a couple columns that are new:
+  -Dinner/Lunch Low/High Price: This was done by parsing each string and separating by a delimiter
+  -IsJapaneseCuisine: This is a logical column that checked if either restaurant type had any elements of Japanese cuisine or Japanese regional cuisine listed. Method - if either of the Restaurant Types was listed as Japanese, a regional Japanese, or serving mainly specific Japanese foods, the equation would return True. 
+  
+##Analysis
+Let's begin by getting a feel for the overall ratings of Kyoto Restaurants:
+```{r}
+summary(clean$TotalRating)
+ggplot(data = clean, aes(x = TotalRating)) + geom_histogram(binwidth = .05)
+```
+
+A quick look tells us that rating data is heavily right-skewed with most ratings falling on the lower end. Let's continue on by using a scatter-plot to glance at the data visually. The first question to address is how pricing affects rating. Not all restaurants have Lunch pricings, but all of them do have Dinner pricings. 
+Let's plot this using jitter to add noise, and add a linear regression model: 
+```{r}
+ggplot(data = clean, aes(x = DinnerLowPrice, y = TotalRating)) + geom_jitter() + stat_smooth(method = "lm")
+#create linear model of all pertinent variables
+m1 <- lm(TotalRating ~ DinnerLowPrice + DinnerHighPrice + LunchLowPrice + LunchHighPrice + IsJapaneseCuisine + Lat + Long, data = clean)
+summary(m1)
+```
+The linear regression model finds that all explanatory variables are statistically significant predictors of rating off of the standard value of <.05 p-value. However, given a low R^2 and adjusted R^2, there still seems to be low correlation between any of these variables and rating. 
+
+Let's investigate the multicollinearity of the variables:
+```{r}
+#check diagnostic plots
+par(mfrow = c(2,2))
+plot(m1)
+
+#check correlations
+ggpairs(clean, col = 7:16)
+```
+
+
+Based on logical reasoning, it would make sense that dinner and lunch prices (low and high) show collinearity. The effect of collinearity on regressional analysis can influence the data by reducing its precision. Let's use stepwise forward selection to reduce the number of variables and collinear variables we use to correlate. 
+
+We first remove the LunchHighPrice:
+```{r}
+m1 <- lm(TotalRating ~ DinnerLowPrice + DinnerHighPrice + LunchLowPrice + IsJapaneseCuisine + Lat + Long, data = clean)
+summary(m1)
+```
+Interestingly, the LunchLowPrice is no longer within the boundaries of significance. Let's remove this variable entirely:
+```{r}
+m1 <- lm(TotalRating ~ DinnerLowPrice + DinnerHighPrice + IsJapaneseCuisine + Lat + Long, data = clean)
+summary(m1)
+```
+Again, we can remove DinnerLowPrice:
+```{r}
+m1 <- lm(TotalRating ~ DinnerHighPrice + IsJapaneseCuisine + Lat + Long, data = clean)
+summary(m1)
+```
+To speed up the process, the parsimonious model is found to be:
+```{r}
+m1 <- lm(TotalRating ~ DinnerHighPrice + IsJapaneseCuisine, data = clean)
+summary(m1)
+```
+We have reduced our explanatory variables down to 2 variables with no visible relationship to one another using Occam's razor. This means that the two most meaningful predictors of Total Rating are the high-end price of Dinner and the quality of if the restaurant serves Japanese-style cuisines and dishes. The equation for this correlation, then, is:
+$$
+TotalRating = 2.197*10^{-5} DinnerHighPrice + -5.382*10^{-2}IsJapaneseCuisine
+$$
+Using this, let's remake the original scatter plot to better show this relationship, using the relevant variables from the parsimonious model:
+```{r}
+ggplot(data = clean, aes(x = DinnerHighPrice, y = TotalRating, colour = IsJapaneseCuisine)) + geom_jitter() + stat_smooth(method = "lm")
+```
+
+I would now like to run a more thorough examination on what exact Restaurant Types are best for business. Here we see:
+```{r}
+summary(lm(TotalRating ~ Restaurant_Type_1 + Restaurant_Type_2, data = clean))
+```
+There are a few highlights that can be taken away from this linear regression run. I'd like to draw attention to 3-starred significance, or p-values of near 0. We see this occur with Modern French, Kaiseki, and Innovative Cuisine. We see Kaiseki does not have a drastic effect on the rating, but Modern French and Innovative Cuisine are highly positive correlations with Total Rating. Although this analysis is more informal, it is still likely that restaurants with these cuisines are higher rated than those without. 
+
+##Visualizations
+I have created some more visualizations on Tableau that are helpful in summarizing the data. The link to the visualizations is: https://public.tableau.com/views/KyotoRestaurantVisualizations/Sheet2?:language=en-US&:display_count=n&:origin=viz_share_link
+
+Some more conclusions that I have drawn in summary using both R and visual analysis with Tableau are below. These are based on my framing the problem as a business opportunity. I want to find out what cuisine, which location, and what prices would be best for a new restaurant owner entering the Kyoto dining market. 
+
+	• Location:
+		○ Gion Shijo and Kyoto Station are by far the most reviewed stations in the Kyoto Prefecture. These numbers are indicators of the amount of consumers that frequent these areas. However, if the owner wants a good balance of ratings to customers, I would recommend placing the restaurant near a mid-sized station such as Arayashima. Gion Shijo is not a bad choice either, as it has better ratings than the Kyoto Station, and receives a large number of customers according to the Tabelog data.
+	• Style:
+			§ Recommendation: International/Neo/Fusion cuisines are thriving in the present day market and should be worthwhile business ventures for stakeholders.
+		○ Further visualizations available on the linked tableau demonstrate the same train as described above. I also find that coffee shops and Japanese tea houses fare well with reviews. If the stakeholders would like to open Japanese cuisine shops, it would be a good investment to go with a beverage-centric restaurant.
+	• Price:
+		○ Mid range prices are the most common prices and are catered towards receiving a much higher wave of people on average. A restaurant owner must keep in mind the amount of revenue and profit their restaurant generates, and not go off of ratings alone. For this reason, I recommend catering towards an upper-middle end consumer base: 3000 - 10000 yen meals. 
+
+
+
