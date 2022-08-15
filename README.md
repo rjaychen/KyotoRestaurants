@@ -7,4 +7,4 @@ This analysis was done for fun, and all credit for the original dataset goes to 
 
 Here is a [link to the Tableau visualizations](https://public.tableau.com/views/KyotoRestaurantVisualizations/Sheet2?:language=en-US&:display_count=n&:origin=viz_share_link) for the data.
 
-Thanks for reading!
+Thanks!
