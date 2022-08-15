@@ -5,6 +5,6 @@ This analysis was done for fun, and all credit for the original dataset goes to 
 
 **Please read the RMarkdown file for more info on what the project is about.**
 
-Here is a [link](https://public.tableau.com/views/KyotoRestaurantVisualizations/Sheet2?:language=en-US&:display_count=n&:origin=viz_share_link) to the Tableau visualizations for the data.
+Here is a [link to the Tableau visualizations](https://public.tableau.com/views/KyotoRestaurantVisualizations/Sheet2?:language=en-US&:display_count=n&:origin=viz_share_link) for the data.
 
 Thanks for reading!
