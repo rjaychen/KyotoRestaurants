@@ -1,5 +1,5 @@
 # KyotoRestaurants
-This is an R project repository for analysis of the ***Kyoto Restaurant Reviews Dataset*** by Koki Ando AKA thatdataanalyst on Kaggle.
+This is an R project repository for analysis of the ***[Kyoto Restaurant Reviews Dataset](https://www.kaggle.com/datasets/koki25ando/tabelog-restaurant-review-dataset)*** by Koki Ando AKA thatdataanalyst on Kaggle.
 
 This analysis was done for fun, and all credit for the original dataset goes to Koki Ando, who sourced it from the Tabelog Restaurant Review website.
 
